@@ -1,5 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Colores Base -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Dabri Music Theme Colors -->
+    <color name="dabri_black">#121212</color>
+    <color name="dabri_dark_gray">#1E1E1E</color>
+    <color name="dabri_card_bg">#282828</color>
+    <color name="dabri_surface">#181818</color>
+
+    <!-- Primary Colors -->
+    <color name="dabri_primary">#1DB954</color> <!-- Verde Spotify-like -->
+    <color name="dabri_primary_dark">#1AA34A</color>
+    <color name="dabri_primary_light">#1ED760</color>
+
+    <!-- Accent Colors -->
+    <color name="dabri_accent">#FF6B6B</color> <!-- Rojo coral -->
+    <color name="dabri_accent_secondary">#4ECDC4</color> <!-- Turquesa -->
+
+    <!-- Text Colors -->
+    <color name="dabri_text_primary">#FFFFFF</color>
+    <color name="dabri_text_secondary">#B3B3B3</color>
+    <color name="dabri_text_tertiary">#808080</color>
+
+    <!-- UI Elements -->
+    <color name="dabri_divider">#2E2E2E</color>
+    <color name="dabri_ripple">#33FFFFFF</color>
+    <color name="dabri_shimmer">#40FFFFFF</color>
+
+    <!-- Status Colors -->
+    <color name="dabri_online">#00D970</color>
+    <color name="dabri_offline">#808080</color>
+    <color name="dabri_error">#F44336</color>
+    <color name="dabri_success">#4CAF50</color>
+
+    <!-- Gradients (para fondos especiales) -->
+    <color name="gradient_start">#1DB954</color>
+    <color name="gradient_end">#191414</color>
 </resources>
