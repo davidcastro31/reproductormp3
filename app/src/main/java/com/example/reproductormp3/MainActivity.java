@@ -1,5 +1,6 @@
 package com.example.reproductormp3;
 
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.cardview.widget.CardView;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -22,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.reproductormp3.models.Song;
 import com.example.reproductormp3.ui.adapters.SongAdapter;
+import com.example.reproductormp3.ui.player.PlayerActivity;
 import com.example.reproductormp3.utils.MediaScanner;
 import com.example.reproductormp3.utils.MusicPlayer;
 import com.example.reproductormp3.utils.PermissionHelper;
@@ -44,7 +47,7 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     private TextView miniPlayerArtist;
     private ImageButton btnPlayPause;
     private ImageButton btnClose;
-    private ImageButton btnFavorites; // Referencia al botón de favoritos
+    private ImageButton btnFavorites;
 
     private boolean hasScanned = false;
     private boolean showingFavorites = false;
@@ -55,28 +58,17 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
         try {
             setContentView(R.layout.activity_main);
-
-            // Inicializar ViewModel
             songViewModel = new ViewModelProvider(this).get(SongViewModel.class);
 
-            // Inicializar vistas
             initializeViews();
-
-            // Inicializar reproductor
             musicPlayer = MusicPlayer.getInstance();
             setupMusicPlayerListener();
-
-            // Configurar RecyclerView
             setupRecyclerView();
-
-            // Verificar permisos
             checkPermissions();
-
-            // Observar cambios en las canciones
             observeSongs();
 
         } catch (Exception e) {
-            Toast.makeText(this, "Error al iniciar: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
             e.printStackTrace();
         }
     }
@@ -84,8 +76,6 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     private void initializeViews() {
         recyclerView = findViewById(R.id.recyclerViewSongs);
         emptyView = findViewById(R.id.emptyView);
-
-        // Mini Player
         miniPlayer = findViewById(R.id.miniPlayer);
         miniPlayerAlbumArt = findViewById(R.id.miniPlayerAlbumArt);
         miniPlayerTitle = findViewById(R.id.miniPlayerTitle);
@@ -95,17 +85,13 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
         setupMiniPlayerControls();
 
-        // Toolbar y botones
         Toolbar toolbar = findViewById(R.id.toolbar);
-
-        // Botón de actualizar
         ImageButton btnRefresh = toolbar.findViewById(R.id.btnRefresh);
-        if (btnRefresh != null) {
-            btnRefresh.setOnClickListener(v -> rescanMusic());
-        }
-
-        // Botón de favoritos
         btnFavorites = toolbar.findViewById(R.id.btnFavorites);
+
+        if (btnRefresh != null) {
+            btnRefresh.setOnClickListener(v -> showRescanDialog());
+        }
         if (btnFavorites != null) {
             btnFavorites.setOnClickListener(v -> toggleFavoritesView());
         }
@@ -119,56 +105,40 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
     private void checkPermissions() {
         if (PermissionHelper.hasStoragePermission(this)) {
-            // En lugar de escanear directamente, verificar si hay canciones primero
             checkIfNeedsScan();
         } else {
             PermissionHelper.requestStoragePermission(this);
         }
     }
 
-    /**
-     * Verifica si necesita escanear (solo si la BD está vacía)
-     */
     private void checkIfNeedsScan() {
-        // Crear un observer que se elimine después de ejecutarse una vez
-        androidx.lifecycle.Observer<List<Song>> oneTimeObserver = new androidx.lifecycle.Observer<List<Song>>() {
+        Observer<List<Song>> observer = new Observer<List<Song>>() {
             @Override
             public void onChanged(List<Song> songs) {
-                // Remover inmediatamente después de recibir los datos
                 songViewModel.getAllSongs().removeObserver(this);
-
                 if (songs == null || songs.isEmpty()) {
-                    // BD vacía, escanear
-                    if (!hasScanned) {
-                        scanAndLoadMusic();
-                    }
+                    if (!hasScanned) scanAndLoadMusic();
                 } else {
-                    // Ya hay canciones, no escanear
                     hasScanned = true;
-                    Toast.makeText(MainActivity.this, "✓ " + songs.size() + " canciones cargadas", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "✓ " + songs.size() + " canciones", Toast.LENGTH_SHORT).show();
                 }
             }
         };
-
-        songViewModel.getAllSongs().observe(this, oneTimeObserver);
+        songViewModel.getAllSongs().observe(this, observer);
     }
 
     private void scanAndLoadMusic() {
         if (hasScanned) return;
         hasScanned = true;
-
         new Handler().postDelayed(this::performScan, 500);
     }
 
-    /**
-     * Re-escanea la música para encontrar canciones nuevas
-     */
-    private void rescanMusic() {
+    private void showRescanDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("Actualizar biblioteca")
-                .setMessage("¿Buscar canciones nuevas?\n\nEsto puede tardar unos segundos.")
-                .setPositiveButton("Actualizar", (dialog, which) -> {
-                    Toast.makeText(this, "🔄 Buscando canciones nuevas...", Toast.LENGTH_SHORT).show();
+                .setMessage("¿Buscar canciones nuevas?")
+                .setPositiveButton("Actualizar", (d, w) -> {
+                    Toast.makeText(this, "🔄 Buscando...", Toast.LENGTH_SHORT).show();
                     performScan();
                 })
                 .setNegativeButton("Cancelar", null)
@@ -178,93 +148,55 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     private void performScan() {
         new Thread(() -> {
             try {
-                MediaScanner scanner = new MediaScanner(this);
-                List<Song> scannedSongs = scanner.scanMusicFiles();
-
-                if (!scannedSongs.isEmpty()) {
-                    runOnUiThread(() -> {
-                        // Observer de una sola vez
-                        androidx.lifecycle.Observer<List<Song>> oneTimeObserver = new androidx.lifecycle.Observer<List<Song>>() {
-                            @Override
-                            public void onChanged(List<Song> existingSongs) {
-                                songViewModel.getAllSongs().removeObserver(this);
-
-                                new Thread(() -> {
-                                    try {
-                                        int newCount = 0;
-
-                                        if (existingSongs != null && !existingSongs.isEmpty()) {
-                                            // Filtrar duplicados
-                                            for (Song scannedSong : scannedSongs) {
-                                                boolean exists = false;
-                                                for (Song existingSong : existingSongs) {
-                                                    if (scannedSong.getPath().equals(existingSong.getPath())) {
-                                                        exists = true;
-                                                        break;
-                                                    }
-                                                }
-                                                if (!exists) {
-                                                    songViewModel.insert(scannedSong);
-                                                    newCount++;
-                                                }
-                                            }
-
-                                            int finalNewCount = newCount;
-                                            runOnUiThread(() -> {
-                                                if (finalNewCount > 0) {
-                                                    Toast.makeText(MainActivity.this,
-                                                            "✓ " + finalNewCount + " canciones nuevas",
-                                                            Toast.LENGTH_SHORT).show();
-                                                } else {
-                                                    Toast.makeText(MainActivity.this,
-                                                            "✓ No hay canciones nuevas",
-                                                            Toast.LENGTH_SHORT).show();
-                                                }
-                                            });
-                                        } else {
-                                            // Base de datos vacía, insertar todas
-                                            songViewModel.insertAll(scannedSongs);
-                                            runOnUiThread(() -> {
-                                                Toast.makeText(MainActivity.this,
-                                                        "✓ " + scannedSongs.size() + " canciones encontradas",
-                                                        Toast.LENGTH_SHORT).show();
-                                            });
-                                        }
-                                    } catch (Exception e) {
-                                        runOnUiThread(() -> {
-                                            Toast.makeText(MainActivity.this,
-                                                    "Error al procesar canciones",
-                                                    Toast.LENGTH_SHORT).show();
-                                        });
-                                        e.printStackTrace();
-                                    }
-                                }).start();
-                            }
-                        };
-
-                        songViewModel.getAllSongs().observe(MainActivity.this, oneTimeObserver);
-                    });
-                } else {
-                    runOnUiThread(() -> {
-                        Toast.makeText(this,
-                                "No se encontró música en el dispositivo",
-                                Toast.LENGTH_LONG).show();
-                    });
+                List<Song> scannedSongs = new MediaScanner(this).scanMusicFiles();
+                if (scannedSongs.isEmpty()) {
+                    runOnUiThread(() -> Toast.makeText(this, "No se encontró música", Toast.LENGTH_LONG).show());
+                    return;
                 }
-            } catch (Exception e) {
+
                 runOnUiThread(() -> {
-                    Toast.makeText(this,
-                            "Error al escanear: " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+                    Observer<List<Song>> observer = new Observer<List<Song>>() {
+                        @Override
+                        public void onChanged(List<Song> existing) {
+                            songViewModel.getAllSongs().removeObserver(this);
+                            new Thread(() -> {
+                                int newCount = 0;
+                                if (existing != null && !existing.isEmpty()) {
+                                    for (Song scanned : scannedSongs) {
+                                        boolean exists = false;
+                                        for (Song ex : existing) {
+                                            if (scanned.getPath().equals(ex.getPath())) {
+                                                exists = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!exists) {
+                                            songViewModel.insert(scanned);
+                                            newCount++;
+                                        }
+                                    }
+                                    int count = newCount;
+                                    runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                                            count > 0 ? "✓ " + count + " nuevas" : "✓ Sin nuevas",
+                                            Toast.LENGTH_SHORT).show());
+                                } else {
+                                    songViewModel.insertAll(scannedSongs);
+                                    runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                                            "✓ " + scannedSongs.size() + " encontradas", Toast.LENGTH_SHORT).show());
+                                }
+                            }).start();
+                        }
+                    };
+                    songViewModel.getAllSongs().observe(MainActivity.this, observer);
                 });
-                e.printStackTrace();
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }
 
     private void observeSongs() {
         songViewModel.getAllSongs().observe(this, songs -> {
-            // Solo actualizar la UI si NO estamos en modo favoritos
             if (!showingFavorites) {
                 if (songs != null && !songs.isEmpty()) {
                     adapter.setSongs(songs);
@@ -300,17 +232,13 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
         } else {
             miniPlayerAlbumArt.setImageResource(R.drawable.ic_music_placeholder);
         }
-
         updatePlayPauseButton();
     }
 
     private void setupMiniPlayerControls() {
         btnPlayPause.setOnClickListener(v -> {
-            if (musicPlayer.isPlaying()) {
-                musicPlayer.pause();
-            } else {
-                musicPlayer.resume();
-            }
+            if (musicPlayer.isPlaying()) musicPlayer.pause();
+            else musicPlayer.resume();
             updatePlayPauseButton();
         });
 
@@ -320,41 +248,30 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
         });
 
         miniPlayer.setOnClickListener(v -> {
-            Toast.makeText(this, "Pantalla completa (próximamente)", Toast.LENGTH_SHORT).show();
+            // Abrir pantalla de reproductor completo
+            Intent intent = new Intent(MainActivity.this, PlayerActivity.class);
+            startActivity(intent);
         });
     }
 
     private void updatePlayPauseButton() {
-        if (musicPlayer.isPlaying()) {
-            btnPlayPause.setImageResource(android.R.drawable.ic_media_pause);
-        } else {
-            btnPlayPause.setImageResource(android.R.drawable.ic_media_play);
-        }
+        btnPlayPause.setImageResource(musicPlayer.isPlaying() ?
+                android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
     }
 
     private void setupMusicPlayerListener() {
         musicPlayer.setOnPlayerStateChangeListener(new MusicPlayer.OnPlayerStateChangeListener() {
             @Override
-            public void onPlaying(Song song) {
-                updatePlayPauseButton();
-            }
-
+            public void onPlaying(Song song) { updatePlayPauseButton(); }
             @Override
-            public void onPaused() {
-                updatePlayPauseButton();
-            }
-
+            public void onPaused() { updatePlayPauseButton(); }
             @Override
-            public void onStopped() {
-                updatePlayPauseButton();
-            }
-
+            public void onStopped() { updatePlayPauseButton(); }
             @Override
             public void onCompletion() {
                 Toast.makeText(MainActivity.this, "Canción finalizada", Toast.LENGTH_SHORT).show();
                 miniPlayer.setVisibility(View.GONE);
             }
-
             @Override
             public void onError(String error) {
                 Toast.makeText(MainActivity.this, error, Toast.LENGTH_SHORT).show();
@@ -364,33 +281,18 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
     @Override
     public void onMenuClick(Song song, int position) {
-        String[] options = {
-                "Agregar a favoritos",
-                "Agregar a lista",
-                "Compartir",
-                "Ver detalles",
-                "Eliminar"
-        };
+        String favoriteText = song.isFavorite() ? "Quitar de favoritos" : "Agregar a favoritos";
+        String[] options = {favoriteText, "Agregar a lista", "Compartir", "Ver detalles", "Eliminar"};
 
         new AlertDialog.Builder(this)
                 .setTitle(song.getTitle())
-                .setItems(options, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            toggleFavorite(song);
-                            break;
-                        case 1:
-                            Toast.makeText(this, "Próximamente", Toast.LENGTH_SHORT).show();
-                            break;
-                        case 2:
-                            Toast.makeText(this, "Próximamente", Toast.LENGTH_SHORT).show();
-                            break;
-                        case 3:
-                            showSongDetails(song);
-                            break;
-                        case 4:
-                            confirmDelete(song);
-                            break;
+                .setItems(options, (d, w) -> {
+                    switch (w) {
+                        case 0: toggleFavorite(song); break;
+                        case 1: Toast.makeText(this, "Próximamente", Toast.LENGTH_SHORT).show(); break;
+                        case 2: Toast.makeText(this, "Próximamente", Toast.LENGTH_SHORT).show(); break;
+                        case 3: showSongDetails(song); break;
+                        case 4: confirmDelete(song); break;
                     }
                 })
                 .show();
@@ -400,101 +302,79 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
         boolean newStatus = !song.isFavorite();
         song.setFavorite(newStatus);
         songViewModel.toggleFavorite(song.getId(), newStatus);
-        String message = newStatus ? "❤️ Agregado a favoritos" : "Eliminado de favoritos";
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+
+        String msg = newStatus ? "❤️ Agregado a favoritos" : "Removido de favoritos";
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+
+        if (showingFavorites && !newStatus) {
+            new Handler().postDelayed(this::refreshFavoritesView, 300);
+        }
     }
 
-    /**
-     * Alterna entre mostrar todas las canciones y solo favoritos
-     */
     private void toggleFavoritesView() {
-        if (showingFavorites) {
-            // Volver a mostrar todas las canciones
-            showingFavorites = false;
-            updateFavoritesButtonColor();
+        showingFavorites = !showingFavorites;
+        updateFavoritesButtonColor();
 
-            // Observer de una sola vez
-            androidx.lifecycle.Observer<List<Song>> oneTimeObserver = new androidx.lifecycle.Observer<List<Song>>() {
+        if (showingFavorites) {
+            Observer<List<Song>> observer = new Observer<List<Song>>() {
                 @Override
-                public void onChanged(List<Song> allSongs) {
+                public void onChanged(List<Song> favs) {
+                    songViewModel.getFavoriteSongs().removeObserver(this);
+                    if (favs != null && !favs.isEmpty()) {
+                        adapter.setSongs(favs);
+                        Toast.makeText(MainActivity.this, "❤️ " + favs.size() + " favoritos", Toast.LENGTH_SHORT).show();
+                    } else {
+                        showingFavorites = false;
+                        updateFavoritesButtonColor();
+                        Toast.makeText(MainActivity.this, "No hay favoritos", Toast.LENGTH_LONG).show();
+                    }
+                }
+            };
+            songViewModel.getFavoriteSongs().observe(this, observer);
+        } else {
+            Observer<List<Song>> observer = new Observer<List<Song>>() {
+                @Override
+                public void onChanged(List<Song> all) {
                     songViewModel.getAllSongs().removeObserver(this);
-                    if (allSongs != null && !allSongs.isEmpty()) {
-                        adapter.setSongs(allSongs);
+                    if (all != null && !all.isEmpty()) {
+                        adapter.setSongs(all);
                         Toast.makeText(MainActivity.this, "📚 Todas las canciones", Toast.LENGTH_SHORT).show();
                     }
                 }
             };
-            songViewModel.getAllSongs().observe(this, oneTimeObserver);
-
-        } else {
-            // Mostrar solo favoritos
-            showingFavorites = true;
-            updateFavoritesButtonColor();
-
-            // Observer de una sola vez
-            androidx.lifecycle.Observer<List<Song>> oneTimeObserver = new androidx.lifecycle.Observer<List<Song>>() {
-                @Override
-                public void onChanged(List<Song> favoriteSongs) {
-                    songViewModel.getFavoriteSongs().removeObserver(this);
-                    if (favoriteSongs != null && !favoriteSongs.isEmpty()) {
-                        adapter.setSongs(favoriteSongs);
-                        Toast.makeText(MainActivity.this, "❤️ " + favoriteSongs.size() + " favoritos", Toast.LENGTH_SHORT).show();
-                    } else {
-                        showingFavorites = false;
-                        updateFavoritesButtonColor();
-                        Toast.makeText(MainActivity.this, "No tienes canciones favoritas aún", Toast.LENGTH_LONG).show();
-                    }
-                }
-            };
-            songViewModel.getFavoriteSongs().observe(this, oneTimeObserver);
+            songViewModel.getAllSongs().observe(this, observer);
         }
     }
 
-    /**
-     * Actualiza el color del botón de favoritos según el estado
-     */
+    private void refreshFavoritesView() {
+        Observer<List<Song>> observer = new Observer<List<Song>>() {
+            @Override
+            public void onChanged(List<Song> favs) {
+                songViewModel.getFavoriteSongs().removeObserver(this);
+                if (favs != null && !favs.isEmpty()) {
+                    adapter.setSongs(favs);
+                } else {
+                    showingFavorites = false;
+                    updateFavoritesButtonColor();
+                    observeSongs();
+                }
+            }
+        };
+        songViewModel.getFavoriteSongs().observe(this, observer);
+    }
+
     private void updateFavoritesButtonColor() {
         if (btnFavorites != null) {
-            if (showingFavorites) {
-                // Cambiar a color primario (verde) cuando está activo
-                btnFavorites.setColorFilter(getResources().getColor(R.color.dabri_primary));
-            } else {
-                // Color normal (accent - rojo) cuando no está activo
-                btnFavorites.setColorFilter(getResources().getColor(R.color.dabri_accent));
-            }
-        }
-    }
-
-    private void showFavorites() {
-        if (showingFavorites) {
-            // Ya está en favoritos, volver a mostrar TODAS
-            showingFavorites = false;
-            songViewModel.getAllSongs().observe(this, allSongs -> {
-                if (allSongs != null && !allSongs.isEmpty()) {
-                    adapter.setSongs(allSongs);
-                    Toast.makeText(this, "Mostrando todas las canciones", Toast.LENGTH_SHORT).show();
-                }
-            });
-        } else {
-            // Mostrar solo favoritos
-            showingFavorites = true;
-            songViewModel.getFavoriteSongs().observe(this, favoriteSongs -> {
-                if (favoriteSongs != null && !favoriteSongs.isEmpty()) {
-                    adapter.setSongs(favoriteSongs);
-                    Toast.makeText(this, "❤️ " + favoriteSongs.size() + " favoritos", Toast.LENGTH_SHORT).show();
-                } else {
-                    showingFavorites = false; // Volver al modo normal
-                    Toast.makeText(this, "No tienes favoritos", Toast.LENGTH_SHORT).show();
-                }
-            });
+            btnFavorites.setColorFilter(getResources().getColor(
+                    showingFavorites ? R.color.dabri_primary : R.color.dabri_accent));
         }
     }
 
     private void showSongDetails(Song song) {
         String details = "🎵 " + song.getTitle() + "\n\n" +
-                "👤 Artista: " + song.getArtist() + "\n" +
-                "💿 Álbum: " + song.getAlbum() + "\n" +
-                "⏱️ Duración: " + song.getFormattedDuration();
+                "👤 " + song.getArtist() + "\n" +
+                "💿 " + song.getAlbum() + "\n" +
+                "⏱️ " + song.getFormattedDuration();
 
         new AlertDialog.Builder(this)
                 .setTitle("Detalles")
@@ -506,10 +386,22 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     private void confirmDelete(Song song) {
         new AlertDialog.Builder(this)
                 .setTitle("Eliminar canción")
-                .setMessage("¿Eliminar \"" + song.getTitle() + "\"?")
-                .setPositiveButton("Eliminar", (dialog, which) -> {
+                .setMessage("¿Eliminar \"" + song.getTitle() + "\"?\n\nSolo se elimina de Dabri Music.")
+                .setPositiveButton("Eliminar", (d, w) -> {
+                    boolean wasFavorite = song.isFavorite();
                     songViewModel.delete(song);
-                    Toast.makeText(this, "Eliminada", Toast.LENGTH_SHORT).show();
+
+                    // Mensaje según si era favorita o no
+                    if (wasFavorite) {
+                        Toast.makeText(this, "🗑️ Eliminada (también de favoritos)", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "🗑️ Eliminada", Toast.LENGTH_SHORT).show();
+                    }
+
+                    // Si estamos viendo favoritos, actualizar la vista
+                    if (showingFavorites) {
+                        new Handler().postDelayed(this::refreshFavoritesView, 300);
+                    }
                 })
                 .setNegativeButton("Cancelar", null)
                 .show();
@@ -518,7 +410,6 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
         if (requestCode == PermissionHelper.PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Permiso concedido", Toast.LENGTH_SHORT).show();

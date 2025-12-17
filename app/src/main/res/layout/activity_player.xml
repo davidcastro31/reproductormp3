@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dabri_black"
+    tools:context=".ui.player.PlayerActivity">
+
+    <!-- Botón de cerrar/volver -->
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_margin="16dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="@color/dabri_text_primary"
+        android:contentDescription="Volver"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Botón de más opciones -->
+    <ImageButton
+        android:id="@+id/btnMore"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_margin="16dp"
+        android:src="@android:drawable/ic_menu_more"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="@color/dabri_text_primary"
+        android:contentDescription="Más opciones"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Carátula del álbum (grande) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/albumArtCard"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_margin="32dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp"
+        app:layout_constraintTop_toBottomOf="@id/btnBack"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/songTitle"
+        app:layout_constraintDimensionRatio="1:1">
+
+        <ImageView
+            android:id="@+id/albumArt"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_music_placeholder"
+            android:contentDescription="Carátula" />
+    </androidx.cardview.widget.CardView>
+
+    <!-- Título de la canción -->
+    <TextView
+        android:id="@+id/songTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="24dp"
+        android:text="Nombre de la canción"
+        android:textColor="@color/dabri_text_primary"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:maxLines="2"
+        android:ellipsize="end"
+        app:layout_constraintTop_toBottomOf="@id/albumArtCard"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Artista -->
+    <TextView
+        android:id="@+id/artistName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="8dp"
+        android:text="Artista"
+        android:textColor="@color/dabri_text_secondary"
+        android:textSize="18sp"
+        android:gravity="center"
+        android:maxLines="1"
+        android:ellipsize="end"
+        app:layout_constraintTop_toBottomOf="@id/songTitle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Botón de favorito -->
+    <ImageButton
+        android:id="@+id/btnFavorite"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="16dp"
+        android:src="@android:drawable/star_big_off"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="@color/dabri_text_secondary"
+        android:contentDescription="Favorito"
+        app:layout_constraintTop_toBottomOf="@id/artistName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Barra de progreso -->
+    <SeekBar
+        android:id="@+id/seekBar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="24dp"
+        android:progressTint="@color/dabri_primary"
+        android:thumbTint="@color/dabri_primary"
+        app:layout_constraintTop_toBottomOf="@id/btnFavorite"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Tiempo actual -->
+    <TextView
+        android:id="@+id/currentTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="4dp"
+        android:text="0:00"
+        android:textColor="@color/dabri_text_tertiary"
+        android:textSize="12sp"
+        app:layout_constraintTop_toBottomOf="@id/seekBar"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Tiempo total -->
+    <TextView
+        android:id="@+id/totalTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="4dp"
+        android:text="3:45"
+        android:textColor="@color/dabri_text_tertiary"
+        android:textSize="12sp"
+        app:layout_constraintTop_toBottomOf="@id/seekBar"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Controles de reproducción -->
+    <LinearLayout
+        android:id="@+id/controlsLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/currentTime"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Botón Shuffle -->
+        <ImageButton
+            android:id="@+id/btnShuffle"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_margin="8dp"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/dabri_text_secondary"
+            android:contentDescription="Aleatorio" />
+
+        <!-- Botón Anterior -->
+        <ImageButton
+            android:id="@+id/btnPrevious"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_margin="8dp"
+            android:src="@android:drawable/ic_media_previous"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/dabri_text_primary"
+            android:contentDescription="Anterior" />
+
+        <!-- Botón Play/Pause (grande) -->
+        <ImageButton
+            android:id="@+id/btnPlayPause"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_margin="8dp"
+            android:src="@android:drawable/ic_media_pause"
+            android:background="@drawable/ic_music_placeholder"
+            app:tint="@color/dabri_primary"
+            android:contentDescription="Play/Pause" />
+
+        <!-- Botón Siguiente -->
+        <ImageButton
+            android:id="@+id/btnNext"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_margin="8dp"
+            android:src="@android:drawable/ic_media_next"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/dabri_text_primary"
+            android:contentDescription="Siguiente" />
+
+        <!-- Botón Repeat -->
+        <ImageButton
+            android:id="@+id/btnRepeat"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_margin="8dp"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/dabri_text_secondary"
+            android:contentDescription="Repetir" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

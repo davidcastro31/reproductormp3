@@ -38,6 +38,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.player.PlayerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Reproductormp3" />
+
         <!-- Servicio para reproducción en segundo plano -->
         <!-- TODO: Descomentar cuando creemos MusicService.java
         <service
