@@ -9,11 +9,13 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.bumptech.glide.Glide;
 import com.example.reproductormp3.R;
 import com.example.reproductormp3.models.Song;
 import com.example.reproductormp3.utils.MusicPlayer;
+import com.example.reproductormp3.viewmodel.SongViewModel;
 
 public class PlayerActivity extends AppCompatActivity {
 
@@ -23,6 +25,7 @@ public class PlayerActivity extends AppCompatActivity {
     private ImageButton btnBack, btnFavorite, btnShuffle, btnPrevious, btnPlayPause, btnNext, btnRepeat, btnMore;
 
     private MusicPlayer musicPlayer;
+    private SongViewModel songViewModel;
     private Song currentSong;
     private Handler handler = new Handler();
     private boolean isSeekBarTracking = false;
@@ -34,12 +37,16 @@ public class PlayerActivity extends AppCompatActivity {
 
         initializeViews();
         musicPlayer = MusicPlayer.getInstance();
+        songViewModel = new ViewModelProvider(this).get(SongViewModel.class);
+
         currentSong = musicPlayer.getCurrentSong();
 
         if (currentSong != null) {
             displaySongInfo();
             setupControls();
+            setupMusicPlayerListener();
             startSeekBarUpdate();
+            updateAllButtons();
         } else {
             Toast.makeText(this, "No hay canción reproduciéndose", Toast.LENGTH_SHORT).show();
             finish();
@@ -102,11 +109,45 @@ public class PlayerActivity extends AppCompatActivity {
             updatePlayPauseButton();
         });
 
+        // Siguiente
+        btnNext.setOnClickListener(v -> {
+            if (musicPlayer.hasNext() || musicPlayer.getRepeatMode() == MusicPlayer.RepeatMode.ALL) {
+                musicPlayer.playNext();
+            } else {
+                Toast.makeText(this, "No hay más canciones", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Anterior
+        btnPrevious.setOnClickListener(v -> {
+            if (musicPlayer.hasPrevious() || musicPlayer.getRepeatMode() == MusicPlayer.RepeatMode.ALL) {
+                musicPlayer.playPrevious();
+            } else {
+                Toast.makeText(this, "Primera canción", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Shuffle
+        btnShuffle.setOnClickListener(v -> {
+            musicPlayer.toggleShuffle();
+            updateShuffleButton();
+            String msg = musicPlayer.isShuffleEnabled() ? "🔀 Aleatorio activado" : "🔀 Aleatorio desactivado";
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        });
+
+        // Repeat
+        btnRepeat.setOnClickListener(v -> {
+            musicPlayer.toggleRepeatMode();
+            updateRepeatButton();
+            String msg = getRepeatMessage();
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        });
+
         // Favorito
         btnFavorite.setOnClickListener(v -> {
             currentSong.setFavorite(!currentSong.isFavorite());
+            songViewModel.toggleFavorite(currentSong.getId(), currentSong.isFavorite());
             updateFavoriteButton();
-            // TODO: Actualizar en BD
             String msg = currentSong.isFavorite() ? "❤️ Agregado a favoritos" : "Removido de favoritos";
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
         });
@@ -132,23 +173,47 @@ public class PlayerActivity extends AppCompatActivity {
             }
         });
 
-        // Botones que aún no funcionan
-        btnPrevious.setOnClickListener(v ->
-                Toast.makeText(this, "⏮️ Anterior (próximamente)", Toast.LENGTH_SHORT).show());
-
-        btnNext.setOnClickListener(v ->
-                Toast.makeText(this, "⏭️ Siguiente (próximamente)", Toast.LENGTH_SHORT).show());
-
-        btnShuffle.setOnClickListener(v ->
-                Toast.makeText(this, "🔀 Aleatorio (próximamente)", Toast.LENGTH_SHORT).show());
-
-        btnRepeat.setOnClickListener(v ->
-                Toast.makeText(this, "🔁 Repetir (próximamente)", Toast.LENGTH_SHORT).show());
-
+        // Más opciones
         btnMore.setOnClickListener(v ->
                 Toast.makeText(this, "Más opciones (próximamente)", Toast.LENGTH_SHORT).show());
 
-        updatePlayPauseButton();
+        updateAllButtons();
+    }
+
+    private void setupMusicPlayerListener() {
+        musicPlayer.setOnPlayerStateChangeListener(new MusicPlayer.OnPlayerStateChangeListener() {
+            @Override
+            public void onPlaying(Song song) {
+                currentSong = song;
+                runOnUiThread(() -> {
+                    displaySongInfo();
+                    updatePlayPauseButton();
+                });
+            }
+
+            @Override
+            public void onPaused() {
+                runOnUiThread(() -> updatePlayPauseButton());
+            }
+
+            @Override
+            public void onStopped() {
+                runOnUiThread(() -> updatePlayPauseButton());
+            }
+
+            @Override
+            public void onCompletion() {
+                runOnUiThread(() -> {
+                    Toast.makeText(PlayerActivity.this, "Reproducción finalizada", Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> Toast.makeText(PlayerActivity.this, error, Toast.LENGTH_SHORT).show());
+            }
+        });
     }
 
     private void startSeekBarUpdate() {
@@ -160,14 +225,46 @@ public class PlayerActivity extends AppCompatActivity {
                     seekBar.setProgress(current);
                     currentTime.setText(formatTime(current));
                 }
-                handler.postDelayed(this, 1000); // Actualizar cada segundo
+                handler.postDelayed(this, 1000);
             }
         }, 1000);
+    }
+
+    private void updateAllButtons() {
+        updatePlayPauseButton();
+        updateShuffleButton();
+        updateRepeatButton();
+        updateFavoriteButton();
     }
 
     private void updatePlayPauseButton() {
         btnPlayPause.setImageResource(musicPlayer.isPlaying() ?
                 android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
+    }
+
+    private void updateShuffleButton() {
+        if (musicPlayer.isShuffleEnabled()) {
+            btnShuffle.setColorFilter(getResources().getColor(R.color.dabri_primary));
+        } else {
+            btnShuffle.setColorFilter(getResources().getColor(R.color.dabri_text_secondary));
+        }
+    }
+
+    private void updateRepeatButton() {
+        switch (musicPlayer.getRepeatMode()) {
+            case OFF:
+                btnRepeat.setColorFilter(getResources().getColor(R.color.dabri_text_secondary));
+                btnRepeat.setImageResource(android.R.drawable.ic_menu_rotate);
+                break;
+            case ONE:
+                btnRepeat.setColorFilter(getResources().getColor(R.color.dabri_primary));
+                btnRepeat.setImageResource(android.R.drawable.ic_menu_rotate);
+                break;
+            case ALL:
+                btnRepeat.setColorFilter(getResources().getColor(R.color.dabri_primary));
+                btnRepeat.setImageResource(android.R.drawable.ic_menu_rotate);
+                break;
+        }
     }
 
     private void updateFavoriteButton() {
@@ -177,6 +274,19 @@ public class PlayerActivity extends AppCompatActivity {
         } else {
             btnFavorite.setImageResource(android.R.drawable.star_big_off);
             btnFavorite.setColorFilter(getResources().getColor(R.color.dabri_text_secondary));
+        }
+    }
+
+    private String getRepeatMessage() {
+        switch (musicPlayer.getRepeatMode()) {
+            case OFF:
+                return "🔁 Repetir desactivado";
+            case ONE:
+                return "🔂 Repetir una canción";
+            case ALL:
+                return "🔁 Repetir todas";
+            default:
+                return "";
         }
     }
 

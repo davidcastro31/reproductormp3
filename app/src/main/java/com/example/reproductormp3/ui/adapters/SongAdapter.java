@@ -94,6 +94,10 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
         notifyDataSetChanged();
     }
 
+    public List<Song> getSongs() {
+        return new ArrayList<>(songs);
+    }
+
     public Song getSongAt(int position) {
         return songs.get(position);
     }

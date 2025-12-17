@@ -212,7 +212,11 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
     @Override
     public void onSongClick(Song song, int position) {
-        musicPlayer.playSong(this, song);
+        // Obtener la lista actual (todas o favoritos)
+        List<Song> currentList = adapter.getSongs();
+
+        // Reproducir con playlist completa
+        musicPlayer.playWithPlaylist(this, song, currentList);
         showMiniPlayer(song);
         songViewModel.incrementPlayCount(song.getId());
     }
